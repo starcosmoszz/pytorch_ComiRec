@@ -49,9 +49,11 @@ def evaluate(model, test_data, hidden_size, device, k=20, coef=None, item_cate_m
             for i, iid_list in enumerate(targets): # 每个用户的label列表，此处item_id为一个二维list，验证和测试是多label的
                 recall = 0
                 dcg = 0.0
-                item_list = set(I[i]) # I[i]是一个batch中第i个用户的近邻搜索结果，i∈[0, batch_size)
-                for no, iid in enumerate(iid_list): # 对于每一个label物品
-                    if iid in item_list: # 如果该label物品在近邻搜索的结果中
+                item_list = list(I[i]) # I[i]是一个batch中第i个用户的近邻搜索结果，i∈[0, batch_size)
+                item_list_unique = list(set(item_list))
+                item_list_unique.sort(key = item_list.index)
+                for no, iid in enumerate(item_list_unique): # 对于每一个label物品
+                    if iid in iid_list: # 如果该label物品在近邻搜索的结果中
                         recall += 1
                         dcg += 1.0 / math.log(no+2, 2)
                 idcg = 0.0
@@ -70,15 +72,15 @@ def evaluate(model, test_data, hidden_size, device, k=20, coef=None, item_cate_m
             for i, iid_list in enumerate(targets): # 每个用户的label列表，此处item_id为一个二维list，验证和测试是多label的
                 recall = 0
                 dcg = 0.0
-                item_list_set = set()
+                item_list_unique = list()
                 if coef is None: # 不考虑物品多样性
                     # 将num_interest个兴趣向量的所有topN近邻物品（num_interest*topN个物品）集合起来按照距离重新排序
                     item_list = list(zip(np.reshape(I[i*ni:(i+1)*ni], -1), np.reshape(D[i*ni:(i+1)*ni], -1)))
                     item_list.sort(key=lambda x:x[1], reverse=True) # 降序排序，内积越大，向量越近
                     for j in range(len(item_list)): # 按距离由近到远遍历推荐物品列表，最后选出最近的topN个物品作为最终的推荐物品
-                        if item_list[j][0] not in item_list_set and item_list[j][0] != 0:
-                            item_list_set.add(item_list[j][0])
-                            if len(item_list_set) >= topN:
+                        if item_list[j][0] not in item_list_unique and item_list[j][0] != 0:
+                            item_list_unique.add(item_list[j][0])
+                            if len(item_list_unique) >= topN:
                                 break
                 else: # 考虑物品多样性
                     coef = float(coef)
@@ -103,7 +105,7 @@ def evaluate(model, test_data, hidden_size, device, k=20, coef=None, item_cate_m
                                 max_score = item_list[k][1] - coef * cate_dict[item_list[k][2]]
                             elif item_list[k][1] < max_score: # 当距离得分小于max_score时，后续物品得分一定小于max_score
                                 break
-                        item_list_set.add(item_list[max_index][0])
+                        item_list_unique.add(item_list[max_index][0])
                         # 选出来的物品的类别对应的value加1，这里是为了尽可能选出类别不同的物品
                         cate_dict[item_list[max_index][2]] += 1
                         item_list.pop(max_index) # 候选物品列表中删掉选出来的物品
@@ -111,8 +113,8 @@ def evaluate(model, test_data, hidden_size, device, k=20, coef=None, item_cate_m
 
 
                 # 上述if-else只是为了用不同方式计算得到最后推荐的结果item列表
-                for no, iid in enumerate(list(item_list_set)): # 对于每一个label物品
-                    if iid in set(iid_list): # 如果该label物品在推荐的物品列表中
+                for no, iid in enumerate(item_list_unique): # 对于每一个label物品
+                    if iid in iid_list: # 如果该label物品在推荐的物品列表中
                         recall += 1
                         dcg += 1.0 / math.log(no+2, 2)
                 idcg = 0.0
@@ -123,7 +125,7 @@ def evaluate(model, test_data, hidden_size, device, k=20, coef=None, item_cate_m
                     total_ndcg += dcg / idcg
                     total_hitrate += 1
                 if coef is not None:
-                    total_diversity += compute_diversity(list(item_list_set), item_cate_map)
+                    total_diversity += compute_diversity(list(item_list_unique), item_cate_map)
         
         total += len(targets) # total增加每个批次的用户数量
     
