@@ -79,7 +79,7 @@ def evaluate(model, test_data, hidden_size, device, k=20, coef=None, item_cate_m
                     item_list.sort(key=lambda x:x[1], reverse=True) # 降序排序，内积越大，向量越近
                     for j in range(len(item_list)): # 按距离由近到远遍历推荐物品列表，最后选出最近的topN个物品作为最终的推荐物品
                         if item_list[j][0] not in item_list_unique and item_list[j][0] != 0:
-                            item_list_unique.add(item_list[j][0])
+                            item_list_unique.append(item_list[j][0])
                             if len(item_list_unique) >= topN:
                                 break
                 else: # 考虑物品多样性
